@@ -51,7 +51,7 @@ class Boss(GameEntity):
             if hero.health > 0:
                 if hasattr(hero, 'is_protected') and hero.is_protected:
                     print(f'{hero.name} is protected and takes no damage!')
-                    hero.is_protected = False  # Сбрасываем защиту после раунда
+                    hero.is_protected = False
                 elif type(hero) == Berserk and self.defence != hero.ability:
                     hero.blocked_damage = choice([5, 10])
                     hero.health -= self.damage - hero.blocked_damage
@@ -66,7 +66,7 @@ class Hero(GameEntity):
     def __init__(self, name, health, damage, ability):
         super().__init__(name, health, damage)
         self.__ability = ability
-        self.is_protected = False  # Добавляем атрибут защиты
+        self.is_protected = False
 
     @property
     def ability(self):
