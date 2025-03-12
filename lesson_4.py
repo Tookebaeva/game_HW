@@ -1,6 +1,5 @@
 from random import randint, choice
 
-
 class GameEntity:
     def __init__(self, name, health, damage):
         self.__name = name
@@ -44,13 +43,16 @@ class Boss(GameEntity):
         return self.__defence
 
     def choose_defence(self, heroes: list):
-        random_hero: Hero = choice(heroes)
+        random_hero = choice(heroes)
         self.__defence = random_hero.ability
 
     def attack(self, heroes: list):
         for hero in heroes:
             if hero.health > 0:
-                if type(hero) == Berserk and self.defence != hero.ability:
+                if hasattr(hero, 'is_protected') and hero.is_protected:
+                    print(f'{hero.name} is protected and takes no damage!')
+                    hero.is_protected = False  # Сбрасываем защиту после раунда
+                elif type(hero) == Berserk and self.defence != hero.ability:
                     hero.blocked_damage = choice([5, 10])
                     hero.health -= self.damage - hero.blocked_damage
                 else:
@@ -64,6 +66,7 @@ class Hero(GameEntity):
     def __init__(self, name, health, damage, ability):
         super().__init__(name, health, damage)
         self.__ability = ability
+        self.is_protected = False  # Добавляем атрибут защиты
 
     @property
     def ability(self):
@@ -81,7 +84,7 @@ class Warrior(Hero):
         super().__init__(name, health, damage, 'CRITICAL_DAMAGE')
 
     def apply_super_power(self, boss: Boss, heroes: list):
-        crit = self.damage * randint(2, 5) # 2,3,4
+        crit = self.damage * randint(2, 5)
         boss.health -= crit
         print(f'Warrior {self.name} hit critically: {crit}')
 
@@ -89,10 +92,16 @@ class Warrior(Hero):
 class Magic(Hero):
     def __init__(self, name, health, damage):
         super().__init__(name, health, damage, 'BOOSTING')
+        self.rounds_active = 4
+        self.boost_value = 5
 
     def apply_super_power(self, boss: Boss, heroes: list):
-        pass
-        # TODO Here will be implementation of boosting
+        if self.rounds_active > 0:
+            for hero in heroes:
+                if hero.health > 0:
+                    hero.damage += self.boost_value
+            self.rounds_active -= 1
+            print(f'Magic {self.name} boosted heroes by {self.boost_value}')
 
 
 class Medic(Hero):
@@ -122,6 +131,72 @@ class Berserk(Hero):
     def apply_super_power(self, boss: Boss, heroes: list):
         boss.health -= self.__blocked_damage
         print(f'Berserk {self.name} reverted: {self.__blocked_damage}')
+
+
+class Witcher(Hero):
+    def __init__(self, name, health, damage):
+        super().__init__(name, health, damage, 'REVIVE')
+        self.used_revive = False
+
+    def attack(self, boss: Boss):
+        pass
+
+    def apply_super_power(self, boss: Boss, heroes: list):
+        if not self.used_revive:
+            for hero in heroes:
+                if hero.health == 0:
+                    hero.health = self.health
+                    self.health = 0
+                    self.used_revive = True
+                    print(f'Witcher {self.name} revived {hero.name} and died')
+                    break
+
+
+class Hacker(Hero):
+    def __init__(self, name, health, damage, steal_amount):
+        super().__init__(name, health, damage, 'STEAL_HEALTH')
+        self.steal_amount = steal_amount
+        self.rounds_counter = 0
+
+    def apply_super_power(self, boss: Boss, heroes: list):
+        self.rounds_counter += 1
+        if self.rounds_counter % 2 == 0 and boss.health > 0:
+            alive_heroes = [hero for hero in heroes if hero.health > 0]
+            if alive_heroes:
+                boss.health -= self.steal_amount
+                lucky_hero = choice(alive_heroes)
+                lucky_hero.health += self.steal_amount
+                print(f'Hacker {self.name} украл {self.steal_amount} и отдал {lucky_hero.name}')
+
+
+class Kamikadze(Hero):
+    def __init__(self, name, health):
+        super().__init__(name, health, 0, 'KAMIK')
+        self.used_explosion = False
+
+    def apply_super_power(self, boss: Boss, heroes: list):
+        if not self.used_explosion and self.health > 0:
+            hit_chance = randint(0, 1)
+            if hit_chance:
+                boss.health -= self.health
+                print(f'Kamikadze {self.name} взрывается с шансом {self.health}')
+            else:
+                boss.health -= self.health // 2
+                print(f'Kamikadze {self.name} промахнулся и нанёс {self.health // 2}')
+            self.health = 0
+            self.used_explosion = True
+
+
+class Avenger(Hero):
+    def __init__(self, name, health, damage):
+        super().__init__(name, health, damage, 'PROTECTION')
+
+    def apply_super_power(self, boss: Boss, heroes: list):
+        if randint(1, 100) <= 20:
+            for hero in heroes:
+                if hero.health > 0:
+                    hero.is_protected = True
+            print(f'Avenger {self.name} защитил всю команду')
 
 
 round_number = 0
@@ -163,15 +238,18 @@ def play_round(boss: Boss, heroes: list):
 
 def start_game():
     boss = Boss('Splinter', 1000, 50)
-
     warrior_1 = Warrior('Django', 280, 10)
     warrior_2 = Warrior('Billy', 270, 15)
     magic = Magic('Dulittle', 290, 10)
     doc = Medic('James', 250, 5, 15)
     assistant = Medic('Marty', 300, 5, 5)
     berserk = Berserk('William', 260, 10)
+    witcher = Witcher('Geralt', 300, 0)
+    hacker = Hacker('Neo', 250, 10, 20)
+    kamikadze = Kamikadze('Kami', 400)
+    avenger = Avenger('Toь', 280, 15)
 
-    heroes_list = [warrior_1, doc, warrior_2, magic, berserk, assistant]
+    heroes_list = [warrior_1, doc, warrior_2, magic, berserk, assistant, witcher, hacker, kamikadze, avenger]
 
     show_statistics(boss, heroes_list)
     while not is_game_over(boss, heroes_list):
